@@ -3,9 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, SkipBack, SkipForward, Volume2, Home, Loader2, BookOpen } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, Home, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Step {
   id: string;
@@ -13,12 +12,10 @@ interface Step {
   duration: number;
 }
 
-interface Lesson {
-  id?: string;
+interface LessonData {
   title: string;
   steps: Step[];
   summary: string;
-  question?: string;
 }
 
 const Board = () => {
@@ -29,30 +26,21 @@ const Board = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [volume, setVolume] = useState([80]);
   
-  const lesson = location.state?.lesson as Lesson | undefined;
-  const question = lesson?.question || "No question provided";
-  const steps = lesson?.steps || [];
-  const title = lesson?.title || "Lecture Board";
+  const question = location.state?.question || "No question provided";
+  const lessonData = location.state?.lessonData as LessonData | undefined;
+  const steps = lessonData?.steps || [];
+  const title = lessonData?.title || "Lecture Board";
 
   useEffect(() => {
-    checkAuth();
-    
-    if (!lesson) {
+    if (!lessonData) {
       toast.error("No lesson data available");
       navigate("/");
     }
-  }, [lesson, navigate]);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-    }
-  };
+  }, [lessonData, navigate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !lesson) return;
+    if (!canvas || !lessonData) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -77,7 +65,7 @@ const Board = () => {
     ctx.font = "20px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(title, canvas.width / 2, canvas.height / 2 + 100);
-  }, [lesson, title]);
+  }, [lessonData, title]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -91,7 +79,7 @@ const Board = () => {
     toast.info(`Jumped to step ${index + 1}`);
   };
 
-  if (!lesson) {
+  if (!lessonData) {
     return null;
   }
 
@@ -109,14 +97,7 @@ const Board = () => {
             Back to Home
           </Button>
           <h1 className="text-2xl font-bold text-primary">{title}</h1>
-          <Button
-            variant="outline"
-            onClick={() => navigate("/lessons")}
-            className="gap-2"
-          >
-            <BookOpen className="h-4 w-4" />
-            My Lessons
-          </Button>
+          <div className="w-32" /> {/* Spacer for alignment */}
         </div>
 
         {/* Main Content */}
@@ -206,32 +187,26 @@ const Board = () => {
             </div>
           </Card>
 
-          {/* Right Sidebar - Current Step Details */}
-          <Card className="lg:col-span-1 p-6 space-y-6 h-fit">
-            <div>
-              <h3 className="font-semibold mb-2 text-primary">
-                Current Step: {currentStep + 1} of {steps.length}
-              </h3>
-              {steps[currentStep] && (
-                <div className="space-y-3">
-                  <p className="text-sm leading-relaxed">
-                    {steps[currentStep].text}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Duration: {steps[currentStep].duration}s</span>
+          {/* Right Sidebar - Transcript */}
+          <Card className="lg:col-span-1 p-6">
+            <h3 className="font-semibold mb-4">Transcript</h3>
+            <div className="space-y-4 text-sm">
+              {steps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className={`p-3 rounded-lg transition-colors ${
+                    currentStep === index
+                      ? "bg-primary/10 border-l-4 border-primary"
+                      : "bg-muted/50"
+                  }`}
+                >
+                  <div className="font-medium text-xs text-primary mb-1">
+                    Step {index + 1}
                   </div>
+                  <div className="text-muted-foreground">{step.text}</div>
                 </div>
-              )}
+              ))}
             </div>
-
-            {lesson.summary && (
-              <div>
-                <h3 className="font-semibold mb-2 text-primary">Summary</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {lesson.summary}
-                </p>
-              </div>
-            )}
           </Card>
         </div>
       </div>

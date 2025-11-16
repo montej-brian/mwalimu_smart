@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Upload, Sparkles, BookOpen, Play, LogOut } from "lucide-react";
+import { Upload, Sparkles, BookOpen, Play } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,33 +11,8 @@ const Index = () => {
   const navigate = useNavigate();
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    checkAuth();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setIsAuthenticated(!!session);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out successfully");
-  };
 
   const handleSubmit = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to generate lessons");
-      navigate("/auth");
-      return;
-    }
-
     if (!question.trim()) {
       toast.error("Please enter a question");
       return;
@@ -46,13 +21,8 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const { data, error } = await supabase.functions.invoke('generate-lesson', {
-        body: { question },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
+        body: { question }
       });
 
       if (error) {
@@ -68,7 +38,7 @@ const Index = () => {
         return;
       }
 
-      navigate("/board", { state: { lesson: data } });
+      navigate("/board", { state: { question, lessonData: data } });
     } catch (error) {
       console.error("Error:", error);
       toast.error("An error occurred. Please try again.");
@@ -81,19 +51,6 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12">
-        {isAuthenticated && (
-          <div className="flex justify-end gap-2 mb-4">
-            <Button onClick={() => navigate("/lessons")} variant="outline">
-              <BookOpen className="mr-2 h-4 w-4" />
-              My Lessons
-            </Button>
-            <Button onClick={handleSignOut} variant="outline">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        )}
-        
         <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
           <div className="inline-flex items-center gap-2 mb-6">
             <BookOpen className="h-12 w-12 text-primary" />
@@ -154,22 +111,6 @@ const Index = () => {
             </div>
           </div>
         </Card>
-
-        {!isAuthenticated && (
-          <div className="text-center mt-6">
-            <p className="text-muted-foreground">
-              New to MwalimuSmart?{" "}
-              <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
-                Sign up
-              </Button>
-              {" "}or{" "}
-              <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
-                sign in
-              </Button>
-              {" "}to save your lessons
-            </p>
-          </div>
-        )}
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mt-16 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">

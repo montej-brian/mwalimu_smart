@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,24 +11,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
     const { question } = await req.json();
 
     if (!question) {
@@ -162,26 +143,8 @@ Guidelines:
     const lessonData = JSON.parse(toolCall.function.arguments);
     console.log("Generated lesson:", lessonData);
 
-    // Save lesson to database
-    const { data: savedLesson, error: saveError } = await supabase
-      .from('lessons')
-      .insert({
-        user_id: user.id,
-        question,
-        title: lessonData.title,
-        steps: lessonData.steps,
-        summary: lessonData.summary,
-      })
-      .select()
-      .single();
-
-    if (saveError) {
-      console.error("Error saving lesson:", saveError);
-      throw saveError;
-    }
-
     return new Response(
-      JSON.stringify({ ...lessonData, id: savedLesson.id, question }),
+      JSON.stringify(lessonData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
