@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Upload, Sparkles, BookOpen, Play } from "lucide-react";
+import { Upload, Sparkles, BookOpen, Play, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { generateLesson } from "@/services/api.service";
+
 
 const Index = () => {
   const navigate = useNavigate();
   const [question, setQuestion] = useState("");
+  const [image, setImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -19,18 +22,9 @@ const Index = () => {
     }
 
     setIsLoading(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-lesson', {
-        body: { question }
-      });
 
-      if (error) {
-        console.error("Error generating lesson:", error);
-        toast.error("Failed to generate lesson. Please try again.");
-        setIsLoading(false);
-        return;
-      }
+    try {
+      const data = await generateLesson(question, image);
 
       if (!data) {
         toast.error("No response from AI. Please try again.");
@@ -47,6 +41,32 @@ const Index = () => {
     }
   };
 
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) { // 4MB limit
+      toast.error("Image size should be less than 4MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImage(reader.result as string);
+      toast.success("Image selected.");
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10">
       {/* Hero Section */}
@@ -58,21 +78,12 @@ const Index = () => {
               MwalimuSmart
             </h1>
           </div>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-2">
-            Your AI-Powered Smart Tutor
-          </p>
-          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            Ask any question and watch as AI breaks it down step-by-step with live illustrations and audio narration
-          </p>
         </div>
 
         {/* Main Question Input */}
         <Card className="max-w-3xl mx-auto p-8 shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
           <div className="space-y-6">
             <div>
-              <label htmlFor="question" className="text-sm font-medium mb-2 block">
-                What would you like to learn today?
-              </label>
               <Textarea
                 id="question"
                 placeholder="E.g., Explain photosynthesis step by step..."
@@ -81,6 +92,22 @@ const Index = () => {
                 className="min-h-[150px] text-base resize-none"
               />
             </div>
+
+            {image && (
+              <div className="relative w-fit mx-auto">
+                <img
+                  src={image}
+                  alt="Upload preview"
+                  className="max-h-48 rounded-lg border"
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-3 -right-3 h-7 w-7 rounded-full"
+                  onClick={handleRemoveImage}
+                ><X className="h-4 w-4" /></Button>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
@@ -100,18 +127,25 @@ const Index = () => {
                   </>
                 )}
               </Button>
-              
+
               <Button
                 variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
                 className="h-12 border-2 hover:bg-muted"
               >
                 <Upload className="mr-2 h-5 w-5" />
                 Upload Image
               </Button>
             </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/png, image/jpeg, image/webp"
+              className="hidden" />
           </div>
         </Card>
-
         {/* Features Grid */}
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mt-16 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
           <Card className="p-6 text-center hover:shadow-card transition-shadow">
