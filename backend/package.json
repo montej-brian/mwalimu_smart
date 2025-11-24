@@ -1,0 +1,39 @@
+{
+    "name": "mwalimu-smart-backend",
+    "version": "1.0.0",
+    "description": "Backend service for MwalimuSmart with Gemini AI integration",
+    "main": "dist/server.js",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "test": "vitest"
+    },
+    "keywords": [
+        "education",
+        "ai",
+        "gemini",
+        "tutoring"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@google-cloud/text-to-speech": "^6.4.0",
+        "@google/generative-ai": "^0.21.0",
+        "axios": "^1.13.2",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.2",
+        "multer": "^1.4.5-lts.1"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.17",
+        "@types/express": "^5.0.0",
+        "@types/multer": "^1.4.12",
+        "@types/node": "^22.10.2",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2",
+        "vitest": "^2.1.8"
+    }
+}

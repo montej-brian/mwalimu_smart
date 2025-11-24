@@ -1,0 +1,92 @@
+import axios from 'axios';
+
+const HF_API_URL = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1';
+const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
+
+interface ImageGenerationResult {
+    imageBase64: string;
+    cached: boolean;
+}
+
+// Simple in-memory cache
+const imageCache = new Map<string, string>();
+
+/**
+ * Generate an educational image using Stable Diffusion
+ */
+export async function generateEducationalImage(
+    topic: string,
+    description: string
+): Promise<ImageGenerationResult> {
+    // Create cache key
+    const cacheKey = `${topic}:${description}`;
+
+    // Check cache first
+    if (imageCache.has(cacheKey)) {
+        console.log('Using cached image for:', topic);
+        return {
+            imageBase64: imageCache.get(cacheKey)!,
+            cached: true
+        };
+    }
+
+    // Create educational prompt
+    const prompt = `Photorealistic image of ${topic}, ${description}, 8k resolution, highly detailed, scientific photography, cinematic lighting, sharp focus, educational`;
+    const negativePrompt = "cartoon, drawing, sketch, low quality, blurry, distorted, text, watermark";
+
+    try {
+        const response = await axios.post(
+            HF_API_URL,
+            {
+                inputs: prompt,
+                parameters: {
+                    negative_prompt: negativePrompt
+                }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${HF_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                responseType: 'arraybuffer',
+                timeout: 30000 // 30 second timeout
+            }
+        );
+
+        // Convert to base64
+        const imageBase64 = Buffer.from(response.data).toString('base64');
+
+        // Cache the result
+        imageCache.set(cacheKey, imageBase64);
+
+        console.log('Generated new image for:', topic);
+        return {
+            imageBase64,
+            cached: false
+        };
+    } catch (error) {
+        console.error('Error generating image with Stable Diffusion:', error);
+        throw new Error('Failed to generate image');
+    }
+}
+
+/**
+ * Detect if a topic should use AI-generated images
+ */
+export function shouldUseAIImage(topic: string, stepText: string): boolean {
+    const aiTopics = [
+        'anatomy', 'biology', 'cell', 'organ', 'body', 'heart', 'brain',
+        'chemistry', 'molecule', 'atom', 'compound', 'reaction',
+        'physics', 'force', 'energy', 'wave', 'particle',
+        'geography', 'map', 'continent', 'ocean',
+        'history', 'ancient', 'civilization',
+        'diagram', 'structure', 'system'
+    ];
+
+    const lowerTopic = topic.toLowerCase();
+    const lowerText = stepText.toLowerCase();
+
+    return aiTopics.some(keyword =>
+        lowerTopic.includes(keyword) || lowerText.includes(keyword)
+    );
+}

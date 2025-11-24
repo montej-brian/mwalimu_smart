@@ -1,0 +1,220 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+export interface LessonStep {
+    id: string;
+    text: string;
+    duration: number;
+}
+
+export interface LessonData {
+    title: string;
+    steps: LessonStep[];
+    summary: string;
+}
+
+export interface VisualInstruction {
+    type: 'circle' | 'rectangle' | 'line' | 'arrow' | 'text' | 'curve';
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    radius?: number;
+    x1?: number;
+    y1?: number;
+    x2?: number;
+    y2?: number;
+    text?: string;
+    color?: string;
+    fontSize?: number;
+    isFormula?: boolean;
+    highlight?: boolean;
+}
+
+/**
+ * Helper to retry an operation with exponential backoff
+ */
+async function retryOperation<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+): Promise<T> {
+    let lastError: any;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+            const delay = baseDelay * Math.pow(2, i);
+            console.warn(`Attempt ${i + 1}/${maxRetries} failed. Retrying in ${delay}ms...`);
+            if (i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    throw lastError;
+}
+
+/**
+ * Helper to clean JSON string from markdown code blocks and comments
+ */
+function cleanJsonString(text: string): string {
+    // Remove markdown code blocks
+    let cleaned = text.replace(/```json\n?|\n?```/g, '');
+
+    // Remove C-style block comments
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Remove single-line comments (// ...), avoiding URLs (http://...)
+    // Matches // that is NOT preceded by a colon
+    cleaned = cleaned.replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+    return cleaned.trim();
+}
+
+/**
+ * Generate a structured lesson from a question and optional image
+ */
+export async function generateLesson(
+    question: string,
+    imageBase64?: string
+): Promise<LessonData> {
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash'
+    });
+
+    const systemPrompt = `You are an expert tutor for MwalimuSmart. When given a student question, break it down into clear, educational steps that help them understand the concept deeply.
+
+Return your response as a JSON object with this structure:
+{
+  "title": "A clear, descriptive title for the lesson",
+  "steps": [
+    {
+      "id": "1",
+      "text": "Clear explanation of this step (1-3 sentences)",
+      "duration": 3
+    }
+  ],
+  "summary": "Brief summary of the key takeaways"
+}
+
+Guidelines:
+- Create 4-6 steps for most concepts
+- Each step should be clear and build on the previous one
+- Use simple language appropriate for secondary school students
+- Duration should be 2-5 seconds per step based on complexity
+- Focus on understanding, not just memorization
+- IMPORTANT: Return strictly valid JSON. Do not include comments (// or /* */) in the response.`;
+
+    const parts: any[] = [
+        { text: systemPrompt },
+        { text: `\n\nStudent Question: ${question}` }
+    ];
+
+    // Add image if provided
+    if (imageBase64) {
+        // Remove data URL prefix if present
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        parts.push({
+            inlineData: {
+                mimeType: 'image/jpeg',
+                data: base64Data
+            }
+        });
+    }
+
+    try {
+        const result = await retryOperation(() => model.generateContent(parts));
+        const response = result.response;
+        const text = response.text();
+
+        const cleanedText = cleanJsonString(text);
+        const lessonData: LessonData = JSON.parse(cleanedText);
+        return lessonData;
+    } catch (error) {
+        console.error('Failed to parse Gemini response for Lesson:', error);
+        throw new Error('Failed to parse lesson data from AI response');
+    }
+}
+
+/**
+ * Generate audio narration for a given text using Google Cloud Text-to-Speech
+ */
+export async function generateAudioNarration(text: string): Promise<{ text: string; audioUrl?: string; audioBase64?: string }> {
+    const { generateAudio } = await import('./tts.service');
+
+    try {
+        const audioBase64 = await retryOperation(() => generateAudio(text));
+        return {
+            text,
+            audioBase64,
+            audioUrl: undefined // Base64 will be converted to blob URL on frontend
+        };
+    } catch (error) {
+        console.error('Failed to generate audio with Google Cloud TTS:', error);
+        // Fallback to text-only if TTS fails
+        return {
+            text,
+            audioUrl: undefined,
+            audioBase64: undefined
+        };
+    }
+}
+
+/**
+ * Generate visual drawing instructions for a step
+ */
+export async function generateVisualInstructions(
+    stepText: string,
+    stepNumber: number
+): Promise<VisualInstruction[]> {
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash'
+    });
+
+    const prompt = `You are a visual instruction generator for an educational whiteboard. Given a lesson step, generate simple drawing instructions that can be rendered on an HTML canvas.
+
+Lesson Step ${stepNumber}: "${stepText}"
+
+Generate drawing instructions as a JSON array of objects. Each object should have:
+- type: "circle" | "rectangle" | "line" | "arrow" | "text" | "curve"
+- Coordinates and dimensions appropriate for a 800x600 canvas
+- color: hex color code
+- For text: 
+  - text: content
+  - fontSize: number
+  - isFormula: boolean (true if text contains chemical formulas or math equations like H2O, x^2)
+  - highlight: boolean (true if this text is a key concept that should glow)
+
+Guidelines:
+- For formulas, use standard text (e.g., "H2O", "x^2 + y^2"). The frontend will handle subscript/superscript rendering.
+- For state symbols in chemistry, include them (e.g., "HCl(aq)").
+- Use "highlight": true for important terms, formulas, or keywords.
+- Keep it simple and educational. Focus on diagrams, labels, and key visual elements.
+- IMPORTANT: Return strictly valid JSON. Do not include comments (// or /* */) in the response.
+
+Example output:
+[
+  {"type": "circle", "x": 400, "y": 300, "radius": 50, "color": "#3b82f6"},
+  {"type": "text", "x": 400, "y": 400, "text": "H2O(l)", "fontSize": 24, "color": "#333333", "isFormula": true, "highlight": true}
+]`;
+
+    try {
+        const result = await retryOperation(() => model.generateContent(prompt));
+        const response = result.response;
+        const text = response.text();
+
+        const cleanedText = cleanJsonString(text);
+        const instructions: VisualInstruction[] = JSON.parse(cleanedText);
+        return instructions;
+    } catch (error) {
+        console.error('Failed to parse Gemini response for Visuals:', error);
+        throw new Error('Failed to parse visual instructions from AI response');
+    }
+}
