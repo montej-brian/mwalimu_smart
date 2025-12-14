@@ -1,5 +1,5 @@
 
-import { generateAudio } from '../services/tts.service';
+import { generateAudio } from './services/tts.service.js';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';

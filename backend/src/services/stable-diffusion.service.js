@@ -3,21 +3,16 @@ import axios from 'axios';
 const HF_API_URL = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1';
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
 
-interface ImageGenerationResult {
-    imageBase64: string;
-    cached: boolean;
-}
-
 // Simple in-memory cache
-const imageCache = new Map<string, string>();
+const imageCache = new Map();
 
 /**
  * Generate an educational image using Stable Diffusion
  */
 export async function generateEducationalImage(
-    topic: string,
-    description: string
-): Promise<ImageGenerationResult> {
+    topic,
+    description
+) {
     // Create cache key
     const cacheKey = `${topic}:${description}`;
 
@@ -25,7 +20,7 @@ export async function generateEducationalImage(
     if (imageCache.has(cacheKey)) {
         console.log('Using cached image for:', topic);
         return {
-            imageBase64: imageCache.get(cacheKey)!,
+            imageBase64: imageCache.get(cacheKey),
             cached: true
         };
     }
@@ -73,7 +68,7 @@ export async function generateEducationalImage(
 /**
  * Detect if a topic should use AI-generated images
  */
-export function shouldUseAIImage(topic: string, stepText: string): boolean {
+export function shouldUseAIImage(topic, stepText) {
     const aiTopics = [
         'anatomy', 'biology', 'cell', 'organ', 'body', 'heart', 'brain',
         'chemistry', 'molecule', 'atom', 'compound', 'reaction',

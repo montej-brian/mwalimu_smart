@@ -1,49 +1,20 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
+import { generateAudio } from './tts.service.js';
 
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-export interface LessonStep {
-    id: string;
-    text: string;
-    duration: number;
-}
-
-export interface LessonData {
-    title: string;
-    steps: LessonStep[];
-    summary: string;
-}
-
-export interface VisualInstruction {
-    type: 'circle' | 'rectangle' | 'line' | 'arrow' | 'text' | 'curve';
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    radius?: number;
-    x1?: number;
-    y1?: number;
-    x2?: number;
-    y2?: number;
-    text?: string;
-    color?: string;
-    fontSize?: number;
-    isFormula?: boolean;
-    highlight?: boolean;
-}
-
 /**
  * Helper to retry an operation with exponential backoff
  */
-async function retryOperation<T>(
-    operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000
-): Promise<T> {
-    let lastError: any;
+async function retryOperation(
+    operation,
+    maxRetries = 3,
+    baseDelay = 1000
+) {
+    let lastError;
 
     for (let i = 0; i < maxRetries; i++) {
         try {
@@ -64,7 +35,7 @@ async function retryOperation<T>(
 /**
  * Helper to clean JSON string from markdown code blocks and comments
  */
-function cleanJsonString(text: string): string {
+function cleanJsonString(text) {
     // Remove markdown code blocks
     let cleaned = text.replace(/```json\n?|\n?```/g, '');
 
@@ -82,9 +53,9 @@ function cleanJsonString(text: string): string {
  * Generate a structured lesson from a question and optional image
  */
 export async function generateLesson(
-    question: string,
-    imageBase64?: string
-): Promise<LessonData> {
+    question,
+    imageBase64
+) {
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash'
     });
@@ -112,7 +83,7 @@ Guidelines:
 - Focus on understanding, not just memorization
 - IMPORTANT: Return strictly valid JSON. Do not include comments (// or /* */) in the response.`;
 
-    const parts: any[] = [
+    const parts = [
         { text: systemPrompt },
         { text: `\n\nStudent Question: ${question}` }
     ];
@@ -135,7 +106,7 @@ Guidelines:
         const text = response.text();
 
         const cleanedText = cleanJsonString(text);
-        const lessonData: LessonData = JSON.parse(cleanedText);
+        const lessonData = JSON.parse(cleanedText);
         return lessonData;
     } catch (error) {
         console.error('Failed to parse Gemini response for Lesson:', error);
@@ -146,9 +117,7 @@ Guidelines:
 /**
  * Generate audio narration for a given text using Google Cloud Text-to-Speech
  */
-export async function generateAudioNarration(text: string): Promise<{ text: string; audioUrl?: string; audioBase64?: string }> {
-    const { generateAudio } = await import('./tts.service');
-
+export async function generateAudioNarration(text) {
     try {
         const audioBase64 = await retryOperation(() => generateAudio(text));
         return {
@@ -171,9 +140,9 @@ export async function generateAudioNarration(text: string): Promise<{ text: stri
  * Generate visual drawing instructions for a step
  */
 export async function generateVisualInstructions(
-    stepText: string,
-    stepNumber: number
-): Promise<VisualInstruction[]> {
+    stepText,
+    stepNumber
+) {
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash'
     });
@@ -211,7 +180,7 @@ Example output:
         const text = response.text();
 
         const cleanedText = cleanJsonString(text);
-        const instructions: VisualInstruction[] = JSON.parse(cleanedText);
+        const instructions = JSON.parse(cleanedText);
         return instructions;
     } catch (error) {
         console.error('Failed to parse Gemini response for Visuals:', error);

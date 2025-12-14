@@ -1,5 +1,4 @@
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
-import type { google } from '@google-cloud/text-to-speech/build/protos/protos';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -20,7 +19,7 @@ if (!fs.existsSync(CACHE_DIR)) {
  * @param text The text to convert to speech
  * @returns Base64-encoded audio data (MP3 format)
  */
-export async function generateAudio(text: string): Promise<string> {
+export async function generateAudio(text) {
     try {
         // 1. Check Cache
         const hash = crypto.createHash('md5').update(text).digest('hex');
@@ -35,7 +34,7 @@ export async function generateAudio(text: string): Promise<string> {
         console.log(`Audio cache miss. Generating for: "${text.substring(0, 20)}..."`);
 
         // 2. Call Google API
-        const request: google.cloud.texttospeech.v1.ISynthesizeSpeechRequest = {
+        const request = {
             input: { text },
             voice: {
                 languageCode: 'en-US',
