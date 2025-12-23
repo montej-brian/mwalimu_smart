@@ -1,9 +1,7 @@
 import { generateLesson, generateAudioNarration, generateVisualInstructions } from '../services/gemini.service.js';
 import { generateEducationalImage, shouldUseAIImage } from '../services/stable-diffusion.service.js';
 
-/**
- * Generate a lesson from a question and optional image
- */
+/*Generate a lesson from a question and optional image*/
 export async function generateLessonController(req, res) {
     try {
         const { question, image } = req.body;
@@ -26,9 +24,7 @@ export async function generateLessonController(req, res) {
     }
 }
 
-/**
- * Generate audio narration for a step
- */
+/* Generate audio narration for a step*/
 export async function generateAudioController(req, res) {
     try {
         const { text } = req.body;
@@ -47,9 +43,7 @@ export async function generateAudioController(req, res) {
     }
 }
 
-/**
- * Generate visual instructions for a step
- */
+/*Generate visual instructions for a step*/
 export async function generateVisualController(req, res) {
     try {
         const { stepText, stepNumber } = req.body;
@@ -72,9 +66,7 @@ export async function generateVisualController(req, res) {
     }
 }
 
-/**
- * Generate an AI image for a step
- */
+/*Generate an AI image for a step*/
 export async function generateImageController(req, res) {
     try {
         const { topic, stepText } = req.body;

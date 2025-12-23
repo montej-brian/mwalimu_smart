@@ -3,20 +3,15 @@ import axios from 'axios';
 const HF_API_URL = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1';
 const HF_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
 
-// Simple in-memory cache
 const imageCache = new Map();
 
-/**
- * Generate an educational image using Stable Diffusion
- */
+/*Generate an educational image using Stable Diffusion*/
 export async function generateEducationalImage(
     topic,
     description
 ) {
-    // Create cache key
     const cacheKey = `${topic}:${description}`;
 
-    // Check cache first
     if (imageCache.has(cacheKey)) {
         console.log('Using cached image for:', topic);
         return {
@@ -24,9 +19,7 @@ export async function generateEducationalImage(
             cached: true
         };
     }
-
-    // Create educational prompt
-    const prompt = `Photorealistic image of ${topic}, ${description}, 8k resolution, highly detailed, scientific photography, cinematic lighting, sharp focus, educational`;
+    const prompt = `Photorealistic image of ${topic}, ${description}, 2k resolution, highly detailed, scientific photography, cinematic lighting, sharp focus, educational`;
     const negativePrompt = "cartoon, drawing, sketch, low quality, blurry, distorted, text, watermark";
 
     try {
@@ -65,9 +58,7 @@ export async function generateEducationalImage(
     }
 }
 
-/**
- * Detect if a topic should use AI-generated images
- */
+/*Detect if a topic should use AI-generated images*/
 export function shouldUseAIImage(topic, stepText) {
     const aiTopics = [
         'anatomy', 'biology', 'cell', 'organ', 'body', 'heart', 'brain',

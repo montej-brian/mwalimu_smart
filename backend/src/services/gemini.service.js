@@ -6,9 +6,7 @@ dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-/**
- * Helper to retry an operation with exponential backoff
- */
+/*Helper to retry an operation with exponential backoff*/
 async function retryOperation(
     operation,
     maxRetries = 3,
@@ -32,26 +30,19 @@ async function retryOperation(
     throw lastError;
 }
 
-/**
- * Helper to clean JSON string from markdown code blocks and comments
- */
+/*Helper to clean JSON string from markdown code blocks and comments*/
 function cleanJsonString(text) {
-    // Remove markdown code blocks
+
     let cleaned = text.replace(/```json\n?|\n?```/g, '');
 
-    // Remove C-style block comments
     cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
 
-    // Remove single-line comments (// ...), avoiding URLs (http://...)
-    // Matches // that is NOT preceded by a colon
     cleaned = cleaned.replace(/(^|[^:])\/\/.*$/gm, '$1');
 
     return cleaned.trim();
 }
 
-/**
- * Generate a structured lesson from a question and optional image
- */
+/*Generate a structured lesson from a question and optional image*/
 export async function generateLesson(
     question,
     imageBase64
@@ -88,9 +79,7 @@ Guidelines:
         { text: `\n\nStudent Question: ${question}` }
     ];
 
-    // Add image if provided
     if (imageBase64) {
-        // Remove data URL prefix if present
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
         parts.push({
             inlineData: {
@@ -114,20 +103,17 @@ Guidelines:
     }
 }
 
-/**
- * Generate audio narration for a given text using Google Cloud Text-to-Speech
- */
+/*Generate audio narration for a given text using Google Cloud Text-to-Speech*/
 export async function generateAudioNarration(text) {
     try {
         const audioBase64 = await retryOperation(() => generateAudio(text));
         return {
             text,
             audioBase64,
-            audioUrl: undefined // Base64 will be converted to blob URL on frontend
+            audioUrl: undefined
         };
     } catch (error) {
         console.error('Failed to generate audio with Google Cloud TTS:', error);
-        // Fallback to text-only if TTS fails
         return {
             text,
             audioUrl: undefined,
@@ -136,9 +122,7 @@ export async function generateAudioNarration(text) {
     }
 }
 
-/**
- * Generate visual drawing instructions for a step
- */
+/*Generate visual drawing instructions for a step*/
 export async function generateVisualInstructions(
     stepText,
     stepNumber
