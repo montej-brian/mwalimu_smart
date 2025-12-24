@@ -51,12 +51,12 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 MwalimuSmart Backend running on http://localhost:${PORT}`);
-    console.log(`📚 API endpoints available at http://localhost:${PORT}/api`);
-    console.log(`🔗 Accepting requests from: ${allowedOrigins.join(', ')}`);
+    console.log(`MwalimuSmart Backend running on http://localhost:${PORT}`);
+    console.log(`API endpoints available at http://localhost:${PORT}/api`);
+    console.log(`Accepting requests from: ${allowedOrigins.join(', ')}`);
 
     if (!process.env.GEMINI_API_KEY) {
-        console.warn('⚠️  WARNING: GEMINI_API_KEY not set in environment variables');
+        console.warn('WARNING: GEMINI_API_KEY not set in environment variables');
     }
 });
 
